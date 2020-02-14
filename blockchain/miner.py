@@ -8,7 +8,7 @@ from uuid import uuid4
 from timeit import default_timer as timer
 
 import random
-
+from random import randint
 
 def proof_of_work(last_proof):
     """
@@ -21,10 +21,11 @@ def proof_of_work(last_proof):
     """
 
     start = timer()
-
+    last_hash = hashlib.sha256(str(last_proof).encode()).hexdigest()
     print("Searching for next proof")
-    proof = 0
-    #  TODO: Your code here
+    proof = randint(0, 10000000000)
+    while(valid_proof(last_hash, str(proof).encode()) == False):
+        proof = randint(0, 10000000000)
 
     print("Proof found: " + str(proof) + " in " + str(timer() - start))
     return proof
@@ -38,9 +39,9 @@ def valid_proof(last_hash, proof):
 
     IE:  last_hash: ...AE9123456, new hash 123456E88...
     """
+    guess_hash = hashlib.sha256(proof).hexdigest()
+    return guess_hash[:6] == last_hash[-6:]
 
-    # TODO: Your code here!
-    pass
 
 
 if __name__ == '__main__':
@@ -65,16 +66,28 @@ if __name__ == '__main__':
     while True:
         # Get the last proof from the server
         r = requests.get(url=node + "/last_proof")
-        data = r.json()
+        try:
+            data = r.json()
+            print(data.get('proof'))
+        except ValueError:
+            print('non-json response from /last_proof: ')
+            print(r)
+            continue
+        
         new_proof = proof_of_work(data.get('proof'))
-
+        
         post_data = {"proof": new_proof,
                      "id": id}
 
         r = requests.post(url=node + "/mine", json=post_data)
-        data = r.json()
-        if data.get('message') == 'New Block Forged':
-            coins_mined += 1
-            print("Total coins mined: " + str(coins_mined))
-        else:
-            print(data.get('message'))
+        try:
+            data = r.json()
+            if data.get('message') == 'New Block Forged':
+                coins_mined += 1
+                print("Total coins mined: " + str(coins_mined))
+            else:
+                print(data.get('message'))
+        except ValueError:
+            print('Non-json response from /mine:')
+            print(r)
+            continue
